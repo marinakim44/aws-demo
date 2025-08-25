@@ -1,40 +1,13 @@
 "use client";
 
-import { DndProvider, useDrag, useDrop } from "react-dnd";
+import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { useState, useRef, useEffect } from "react";
-
-// mini helper
-function removeFromAll(buckets: Bucket[], feat: Feature): Bucket[] {
-  return buckets.map((b) => ({
-    ...b,
-    features: b.features.filter((f) => f.id !== feat.id),
-  }));
-}
-
-type Feature = {
-  id: string;
-  name: string;
-};
-type Bucket = {
-  id: string;
-  name: string;
-  features: Feature[];
-};
-
-const initialFeatures: Feature[] = [
-  { id: "f1", name: "User Authentication" },
-  { id: "f2", name: "Real-Time Chat" },
-  { id: "f3", name: "Reporting" },
-  { id: "f4", name: "Public API" },
-];
-
-const initialBuckets: Bucket[] = [
-  { id: "interactive", name: "Interactive", features: [] },
-  { id: "async", name: "Async", features: [] },
-  { id: "batch", name: "Batch", features: [] },
-  { id: "public", name: "Public API", features: [] },
-];
+import type { Feature, Bucket } from "@/app/types/global.js";
+import { initialFeatures, initialBuckets } from "./data";
+import { addFeature } from "./crud";
+import { BucketColumn } from "@/components/BucketColumn";
+import { UnassignedPanel } from "@/components/UnassignedPanel";
 
 export default function FeatureCanvasPage() {
   const [unassigned, setUnassigned] = useState<Feature[]>(initialFeatures);
@@ -49,44 +22,9 @@ export default function FeatureCanvasPage() {
     dotSpec: string;
   } | null>(null);
   const [newFeatureName, setNewFeatureName] = useState("");
-
-  // Editing state
   const [editingFeatureId, setEditingFeatureId] = useState<string | null>(null);
   const [editingFeatureName, setEditingFeatureName] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const addFeature = () => {
-    const name = newFeatureName.trim();
-    if (!name) return;
-    const id = `f_${Date.now()}`;
-    setUnassigned((u) => [...u, { id, name }]);
-    setNewFeatureName("");
-  };
-
-  const removeFeature = (feat: Feature) => {
-    setUnassigned((u) => u.filter((f) => f.id !== feat.id));
-    setBuckets((all) =>
-      all.map((b) => ({
-        ...b,
-        features: b.features.filter((f) => f.id !== feat.id),
-      }))
-    );
-  };
-
-  const renameFeature = (featId: string, newName: string) => {
-    setUnassigned((u) =>
-      u.map((f) => (f.id === featId ? { ...f, name: newName } : f))
-    );
-    setBuckets((all) =>
-      all.map((b) => ({
-        ...b,
-        features: b.features.map((f) =>
-          f.id === featId ? { ...f, name: newName } : f
-        ),
-      }))
-    );
-    setEditingFeatureId(null);
-  };
 
   const diagramRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -109,207 +47,6 @@ export default function FeatureCanvasPage() {
     })();
   }, [awsStack]);
 
-  // Reusable draggable feature with edit/remove
-  type DraggableFeatureProps = {
-    feature: Feature;
-    onRemove?: (feat: Feature) => void;
-    isEditing?: boolean;
-    editingName?: string;
-    onRenameStart?: (feat: Feature) => void;
-    onEditingNameChange?: (val: string) => void;
-    onRenameCancel?: () => void;
-    onRenameConfirm?: (feat: Feature, newName: string) => void;
-  };
-
-  const DraggableFeature = ({
-    feature,
-    onRemove,
-    isEditing,
-    editingName,
-    onRenameStart,
-    onEditingNameChange,
-    onRenameCancel,
-    onRenameConfirm,
-  }: DraggableFeatureProps) => {
-    const rootRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-
-    const [, dragRef] = useDrag<Feature, void, unknown>(() => ({
-      type: "FEATURE",
-      item: feature,
-    }));
-
-    // attach drag to root
-    useEffect(() => {
-      const node = rootRef.current;
-      if (!node) return;
-      if (!isEditing) dragRef(node);
-      return () => {
-        dragRef(null);
-      };
-    }, [dragRef, isEditing]);
-
-    // focus input when editing
-    useEffect(() => {
-      if (isEditing && inputRef.current) {
-        inputRef.current.focus();
-        const len = inputRef.current.value.length;
-        inputRef.current.setSelectionRange(len, len);
-      }
-    }, [isEditing, editingName]);
-
-    return (
-      <div
-        ref={rootRef}
-        className="p-2 mb-2 bg-gray-100 rounded flex items-center justify-between text-sm"
-      >
-        {isEditing ? (
-          <div className="flex-1 flex space-x-2">
-            <input
-              ref={inputRef}
-              className="flex-1 p-1 border rounded"
-              value={editingName}
-              onChange={(e) => onEditingNameChange?.(e.target.value)}
-            />
-            <button
-              onClick={() => onRenameConfirm?.(feature, editingName!)}
-              className="text-green-600 hover:text-green-800"
-            >
-              ✓
-            </button>
-            <button
-              onClick={onRenameCancel}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <>
-            <span>{feature.name}</span>
-            <div className="flex space-x-1">
-              <button
-                onClick={() => onRenameStart?.(feature)}
-                className="text-blue-600 hover:text-blue-800"
-              >
-                ✎
-              </button>
-              {onRemove && (
-                <button
-                  onClick={() => onRemove(feature)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    );
-  };
-
-  const BucketColumn = ({
-    bucket,
-    setBuckets,
-    setUnassigned,
-  }: {
-    bucket: Bucket;
-    setBuckets: React.Dispatch<React.SetStateAction<Bucket[]>>;
-    setUnassigned: React.Dispatch<React.SetStateAction<Feature[]>>;
-  }) => {
-    const [, dropRef] = useDrop<Feature, void, unknown>(() => ({
-      accept: "FEATURE",
-      drop: (feat) => {
-        setBuckets((all) => removeFromAll(all, feat));
-        setUnassigned((u) => u.filter((f) => f.id !== feat.id));
-        setBuckets((all) =>
-          all.map((b) =>
-            b.id === bucket.id ? { ...b, features: [...b.features, feat] } : b
-          )
-        );
-      },
-    }));
-
-    return (
-      <div
-        ref={(node) => {
-          dropRef(node);
-        }}
-        className="col-span-1 p-4 border rounded min-h-[200px]"
-      >
-        <h2 className="font-bold mb-2">{bucket.name}</h2>
-        {bucket.features.map((feat) => (
-          <DraggableFeature
-            key={feat.id}
-            feature={feat}
-            onRemove={removeFeature}
-            onRenameStart={(f) => {
-              setEditingFeatureId(f.id);
-              setEditingFeatureName(f.name);
-            }}
-            isEditing={editingFeatureId === feat.id}
-            editingName={editingFeatureName}
-            onEditingNameChange={setEditingFeatureName}
-            onRenameCancel={() => setEditingFeatureId(null)}
-            onRenameConfirm={(f, newName) => renameFeature(f.id, newName)}
-          />
-        ))}
-      </div>
-    );
-  };
-
-  const UnassignedPanel = ({
-    unassigned,
-    setUnassigned,
-    setBuckets,
-  }: {
-    unassigned: Feature[];
-    setUnassigned: React.Dispatch<React.SetStateAction<Feature[]>>;
-    setBuckets: React.Dispatch<React.SetStateAction<Bucket[]>>;
-  }) => {
-    const [, dropRef] = useDrop<Feature, void, unknown>(() => ({
-      accept: "FEATURE",
-      drop: (feat) => {
-        setBuckets((all) => removeFromAll(all, feat));
-        setUnassigned((u) =>
-          u.some((f) => f.id === feat.id) ? u : [...u, feat]
-        );
-      },
-    }));
-
-    return (
-      <div
-        ref={(node) => {
-          dropRef(node);
-        }}
-        className="col-span-1 p-4 border rounded min-h-[200px]"
-      >
-        <h2 className="font-bold mb-2">Features</h2>
-        <p className="text-xs italic mb-2">
-          Add your features here before distributing them into feature buckets.
-          Examples added for you
-        </p>
-        {unassigned.map((feat) => (
-          <DraggableFeature
-            key={feat.id}
-            feature={feat}
-            onRemove={removeFeature}
-            onRenameStart={(f) => {
-              setEditingFeatureId(f.id);
-              setEditingFeatureName(f.name);
-            }}
-            isEditing={editingFeatureId === feat.id}
-            editingName={editingFeatureName}
-            onEditingNameChange={setEditingFeatureName}
-            onRenameCancel={() => setEditingFeatureId(null)}
-            onRenameConfirm={(f, newName) => renameFeature(f.id, newName)}
-          />
-        ))}
-      </div>
-    );
-  };
-
   const getSuggestion = async () => {
     setLoading(true);
     const quizInput = JSON.parse(localStorage.getItem("quizInputData") || "{}");
@@ -326,7 +63,7 @@ export default function FeatureCanvasPage() {
   };
 
   return (
-    <div className="max-w-[1200px] m-auto">
+    <div className="max-w-[1500px] m-auto">
       <div className="flex space-x-2 w-[300px] pt-10 pl-8">
         <input
           type="text"
@@ -336,7 +73,9 @@ export default function FeatureCanvasPage() {
           className="flex-1 p-2 border rounded"
         />
         <button
-          onClick={addFeature}
+          onClick={() =>
+            addFeature(newFeatureName, setUnassigned, setNewFeatureName)
+          }
           className="px-4 py-2 bg-green-600 text-white rounded"
         >
           Add Feature
@@ -349,6 +88,10 @@ export default function FeatureCanvasPage() {
             unassigned={unassigned}
             setUnassigned={setUnassigned}
             setBuckets={setBuckets}
+            setEditingFeatureId={setEditingFeatureId}
+            setEditingFeatureName={setEditingFeatureName}
+            editingFeatureId={editingFeatureId}
+            editingFeatureName={editingFeatureName}
           />
 
           {buckets.map((bucket) => (
@@ -357,11 +100,14 @@ export default function FeatureCanvasPage() {
               bucket={bucket}
               setBuckets={setBuckets}
               setUnassigned={setUnassigned}
+              setEditingFeatureId={setEditingFeatureId}
+              setEditingFeatureName={setEditingFeatureName}
+              editingFeatureId={editingFeatureId}
+              editingFeatureName={editingFeatureName}
             />
           ))}
         </div>
 
-        {/* Additional notes input */}
         <div className="p-8">
           <label className="block font-semibold mb-2">
             Additional notes / requirements:
@@ -386,29 +132,37 @@ export default function FeatureCanvasPage() {
         </div>
 
         {awsStack && (
-          <div className="mt-8 p-4 border rounded bg-gray-50">
-            <h2 className="text-xl font-semibold mb-2">
-              AWS Stack Recommendation
-            </h2>
+          <div className="mt-8 mb-20 p-8 m-8 border rounded bg-gray-50">
+            <div className="max-w-[500px]">
+              <h2 className="text-xl font-semibold mb-2">
+                AWS Stack Recommendation
+              </h2>
 
-            <p className="font-semibold">SDLC:</p>
-            <p className="mb-4">{awsStack.sdlc}</p>
+              <div className="flex space-x-4">
+                <div>
+                  <p className="font-semibold">SDLC:</p>
+                  <p className="mb-4">{awsStack.sdlc}</p>
+                </div>
 
-            <p className="font-semibold">Architecture:</p>
-            <p className="mb-4">{awsStack.architecture}</p>
+                <div>
+                  <p className="font-semibold">Architecture:</p>
+                  <p className="mb-4">{awsStack.architecture}</p>
+                </div>
+              </div>
 
-            <p className="font-semibold">Additional Reply:</p>
-            <p className="mb-4">{awsStack.additionalReply}</p>
+              <p className="font-semibold">Additional info:</p>
+              <p className="mb-4">{awsStack.additionalReply}</p>
 
-            <p className="font-semibold">Services:</p>
-            <ul className="list-disc list-inside mb-4">
-              {awsStack.services.map((svc) => (
-                <li key={svc}>{svc}</li>
-              ))}
-            </ul>
+              <p className="font-semibold">Services:</p>
+              <ul className="list-disc list-inside mb-4">
+                {awsStack.services.map((svc) => (
+                  <li key={svc}>{svc}</li>
+                ))}
+              </ul>
 
-            <p className="font-semibold">Rationale:</p>
-            <p className="mb-4">{awsStack.rationale}</p>
+              <p className="font-semibold">Rationale:</p>
+              <p className="mb-4">{awsStack.rationale}</p>
+            </div>
 
             <p className="font-semibold">Architecture Diagram:</p>
             <div

@@ -55,7 +55,7 @@ export const AppArchJsonSchema = rawAppArchSchema.definitions!
 export const AWSStackSchema = z.object({
   sdlc: z.string().min(1), // proposed SDLC methodology
   architecture: z.string().min(1), // proposed web app architecture
-  additionalReply: z.string().min(1).optional(), // additional reply for user
+  additionalReply: z.string().optional(), // additional reply for user
   services: z.array(z.string()).min(1), // list of AWS services
   rationale: z.string().min(1), // why these services
   dotSpec: z.string().min(1), // e.g. Mermaid or JSON for diagram

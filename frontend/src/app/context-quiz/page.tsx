@@ -2,7 +2,6 @@
 
 import { data } from "./data.js";
 import { useState } from "react";
-import Link from "next/link.js";
 
 export default function ContextQuizPage() {
   const [quiz, setQuiz] = useState({
@@ -27,7 +26,7 @@ export default function ContextQuizPage() {
   };
 
   return (
-    <div className="p-10 max-w-[1200px] m-auto">
+    <div className="p-10 max-w-[1200px] m-auto text-sm">
       <h1 className="font-bold text-2xl mb-8">
         Demo: AI assistant to identify the AWS architecture
       </h1>
