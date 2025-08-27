@@ -15,6 +15,14 @@ const LatencyProfile = z.enum(["low-p95", "medium-p95", "high-p95"]);
 const ColdStartTolerance = z.enum(["cold-start-ok", "cold-start-minimal"]);
 const ComplianceLevel = z.enum(["none", "basic", "strict"]);
 const ScopeStability = z.enum(["fixed", "evolving"]);
+const DataVolumeOptions = z.enum(["kb-mb", "mb-gb", "gb-tb", "not-applicable"]);
+const AvailabilityOptions = z.enum([
+  "99-9",
+  "99-99",
+  "99-999",
+  "not-applicable",
+]);
+const TrafficPattern = z.enum(["steady", "spiky", "burst"]);
 
 // Quiz Zod schema
 export const ContextQuizSchema = z.object({
@@ -27,6 +35,9 @@ export const ContextQuizSchema = z.object({
   coldStartTolerance: ColdStartTolerance,
   complianceLevel: ComplianceLevel,
   scopeStability: ScopeStability,
+  dataVolumeOptions: DataVolumeOptions,
+  availabilityOptions: AvailabilityOptions,
+  trafficPattern: TrafficPattern,
   otherDetails: z.string().optional(),
 });
 export type ContextQuiz = z.infer<typeof ContextQuizSchema>;
@@ -54,8 +65,9 @@ export const AppArchJsonSchema = rawAppArchSchema.definitions!
 // AWS Stack suggestion schema
 export const AWSStackSchema = z.object({
   sdlc: z.string().min(1), // proposed SDLC methodology
-  architecture: z.string().min(1), // proposed web app architecture
-  additionalReply: z.string().optional(), // additional reply for user
+  appArchitecture: z.string().min(1), // proposed web app architecture
+  additionalReply: z.string(), // additional reply for user
+  approximateCost: z.string().min(1), // estimated cost of the proposed AWS architecture
   services: z.array(z.string()).min(1), // list of AWS services
   rationale: z.string().min(1), // why these services
   dotSpec: z.string().min(1), // e.g. Mermaid or JSON for diagram

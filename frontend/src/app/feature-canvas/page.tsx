@@ -15,8 +15,9 @@ export default function FeatureCanvasPage() {
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [awsStack, setAwsStack] = useState<{
     sdlc: string;
-    architecture: string;
+    appArchitecture: string;
     additionalReply: string;
+    approximateCost: string;
     services: string[];
     rationale: string;
     dotSpec: string;
@@ -25,6 +26,8 @@ export default function FeatureCanvasPage() {
   const [editingFeatureId, setEditingFeatureId] = useState<string | null>(null);
   const [editingFeatureName, setEditingFeatureName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [requestDuration, setRequestDuration] = useState<number | null>(null);
 
   const diagramRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,16 +52,30 @@ export default function FeatureCanvasPage() {
 
   const getSuggestion = async () => {
     setLoading(true);
+    setError(null);
+    setAwsStack(null);
+    const start = Date.now();
     const quizInput = JSON.parse(localStorage.getItem("quizInputData") || "{}");
+    console.log("Quiz input:", quizInput);
+    console.log("Buckets:", buckets);
+    console.log("Additional notes:", additionalNotes);
     const res = await fetch("http://localhost:4000/api/recommend-stack", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quizInput, buckets, additionalNotes }),
     });
-    if (!res.ok) return;
+    console.log("Response", res);
+    if (!res.ok) {
+      setError(res.statusText || "Unknown error");
+      setLoading(false);
+      return;
+    }
     const { awsStack } = await res.json();
+    console.log("AWS Stack suggestion:", awsStack);
     setAwsStack(awsStack);
     localStorage.setItem("awsRecommendation", JSON.stringify(awsStack));
+    const end = Date.now();
+    setRequestDuration(end - start);
     setLoading(false);
   };
 
@@ -83,7 +100,7 @@ export default function FeatureCanvasPage() {
       </div>
 
       <DndProvider backend={HTML5Backend}>
-        <div className="p-8 grid grid-cols-5 gap-4">
+        <div className="p-8 grid grid-cols-4 gap-4">
           <UnassignedPanel
             unassigned={unassigned}
             setUnassigned={setUnassigned}
@@ -121,7 +138,7 @@ export default function FeatureCanvasPage() {
           />
         </div>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center mb-20">
           <button
             onClick={getSuggestion}
             className="px-6 py-3 bg-blue-600 text-white rounded"
@@ -129,9 +146,22 @@ export default function FeatureCanvasPage() {
           >
             {loading ? "Loading..." : "Get AWS Stack Recommendation"}
           </button>
+          {requestDuration !== null && !loading && (
+            <p className="mt-2 text-sm text-gray-600">
+              Request took {(requestDuration / 1000).toFixed(2)} seconds which
+              is ({((requestDuration / (20 * 60 * 1000)) * 100).toFixed(2)}% of
+              my 20 mins talk...)
+            </p>
+          )}
         </div>
 
-        {awsStack && (
+        {error && (
+          <div className="mt-4 p-4 m-8 border rounded bg-red-50 text-red-800">
+            {error}
+          </div>
+        )}
+
+        {!error && awsStack && (
           <div className="mt-8 mb-20 p-8 m-8 border rounded bg-gray-50">
             <div className="max-w-[500px]">
               <h2 className="text-xl font-semibold mb-2">
@@ -146,12 +176,17 @@ export default function FeatureCanvasPage() {
 
                 <div>
                   <p className="font-semibold">Architecture:</p>
-                  <p className="mb-4">{awsStack.architecture}</p>
+                  <p className="mb-4">{awsStack.appArchitecture}</p>
                 </div>
               </div>
 
               <p className="font-semibold">Additional info:</p>
               <p className="mb-4">{awsStack.additionalReply}</p>
+
+              <p className="font-semibold">
+                Approximate monthly cost GBP (very approximate):
+              </p>
+              <p className="mb-4">{awsStack.approximateCost}</p>
 
               <p className="font-semibold">Services:</p>
               <ul className="list-disc list-inside mb-4">

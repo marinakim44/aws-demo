@@ -15,6 +15,9 @@ export default function ContextQuizPage() {
     complianceLevel: "none",
     teamSkills: "serverless",
     scopeStability: "fixed",
+    dataVolumeOptions: "not-applicable",
+    availabilityOptions: "not-applicable",
+    trafficPattern: "steady",
     otherDetails: "",
   });
 

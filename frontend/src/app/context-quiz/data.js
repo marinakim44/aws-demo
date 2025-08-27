@@ -10,9 +10,9 @@ const timeToMarketOptions = [
   { value: "full-control", label: "Full control (months)" },
 ];
 const scalabilityNeedsOptions = [
-  { value: "low", label: "Low scalability needs" },
-  { value: "auto-scaling", label: "Auto-scaling" },
-  { value: "global-scale", label: "Global scale" },
+  { value: "low", label: "Startup/Low-volume" },
+  { value: "auto-scaling", label: "Medium volume" },
+  { value: "global-scale", label: "High volume/Rapid growth" },
 ];
 
 const opsOverheadOptions = [
@@ -26,9 +26,9 @@ const flexibilityOptions = [
   { value: "maximum", label: "Maximum flexibility" },
 ];
 const latencyProfileOptions = [
-  { value: "low-p95", label: "Low latency (p95)" },
-  { value: "medium-p95", label: "Medium latency (p95)" },
-  { value: "high-p95", label: "High latency (p95)" },
+  { value: "low-p95", label: "Low" },
+  { value: "medium-p95", label: "Medium" },
+  { value: "high-p95", label: "High" },
 ];
 const coldStartToleranceOptions = [
   { value: "cold-start-ok", label: "Cold start OK" },
@@ -42,6 +42,22 @@ const complianceLevelOptions = [
 const scopeStabilityOptions = [
   { value: "fixed", label: "Fixed scope" },
   { value: "evolving", label: "Evolving scope" },
+];
+const dataVolumeOptions = [
+  { value: "kb-mb", label: "Low" },
+  { value: "mb-gb", label: "Medium" },
+  { value: "gb-tb", label: "High" },
+  { value: "not-applicable", label: "Not applicable" },
+];
+const availabilityOptions = [
+  { value: "99-9", label: "Basic" },
+  { value: "99-99", label: "Resilient" },
+  { value: "99-999", label: "High availability" },
+];
+const trafficPatternOptions = [
+  { value: "steady", label: "Steady traffic" },
+  { value: "spiky", label: "Spiky traffic" },
+  { value: "burst", label: "Burst traffic" },
 ];
 
 export const data = [
@@ -89,5 +105,20 @@ export const data = [
     name: "scopeStability",
     label: "Scope Stability",
     options: scopeStabilityOptions,
+  },
+  {
+    name: "dataVolumeOptions",
+    label: "Data Volume Options",
+    options: dataVolumeOptions,
+  },
+  {
+    name: "availabilityOptions",
+    label: "Availability Options",
+    options: availabilityOptions,
+  },
+  {
+    name: "trafficPattern",
+    label: "Traffic Pattern",
+    options: trafficPatternOptions,
   },
 ];

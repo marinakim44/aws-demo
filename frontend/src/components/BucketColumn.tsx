@@ -47,13 +47,22 @@ export const BucketColumn = ({
       <h2 className="font-bold mb-2">{bucket.name}</h2>
       <p className="text-xs italic mb-2">
         {bucket.name === "Interactive"
-          ? "Features that respond immediately to user actions in the UI. E.g. User Authentication, Real-Time Chat"
+          ? "Features that respond immediately to authenticated user actions in the UI. E.g. User Authentication, Dashboard Updates"
+          : bucket.name === "Public API"
+          ? "Unauthenticated HTTP endpoints exposed to external clients or partner systems. E.g. Gift-card lookup API, Third-Party Integrations"
+          : bucket.name === "Static content"
+          ? "Immutable assets served globally for websites or SPAs. E.g. Marketing pages, Landing page assets"
           : bucket.name === "Async"
-          ? "Event-driven or background jobs that run in response to events, but don’t block the user. E.g. Send Email, Image Processing."
+          ? "Event-driven or background jobs that run in response to events, but don’t block the user. E.g. Send Email, QR Code Generation"
           : bucket.name === "Batch"
-          ? "Scheduled or large-volume jobs that run on a timer or on demand for bulk data. E.g. Daily Reports Generation, Data Export."
-          : "HTTP endpoints exposed to external clients or partner systems. E.g. Open Data API, Third-Party Integrations."}
+          ? "Scheduled or large-volume jobs that run on a timer or on demand for bulk data. E.g. Daily Reports Generation, Data Export"
+          : bucket.name === "Real-time / streaming"
+          ? "Real-time data processing and streaming workloads. E.g. Live user activity tracking, Video streaming"
+          : bucket.name === "Other"
+          ? "Miscellaneous workloads or DevOps tasks that don’t fit other buckets. E.g. CI/CD pipelines, Monitoring & Log Analysis"
+          : null}
       </p>
+
       {bucket.features.map((feat) => (
         <DraggableFeature
           key={feat.id}

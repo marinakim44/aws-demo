@@ -86,15 +86,18 @@ app.post("/api/recommend-stack", async (req, res) => {
   const bodySchema = z.object({
     quizInput: ContextQuizSchema,
     additionalNotes: z.string().optional(),
-    buckets: z.array(
-      z.object({
-        id: z.string(),
-        name: z.string(),
-        features: z.array(z.object({ id: z.string(), name: z.string() })),
-      })
-    ),
+    buckets: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          features: z.array(z.object({ id: z.string(), name: z.string() })),
+        })
+      )
+      .min(1),
   });
   const parsed = bodySchema.safeParse(req.body);
+  console.log("Parsed request body:", parsed);
 
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.errors });
@@ -109,13 +112,19 @@ app.post("/api/recommend-stack", async (req, res) => {
     preferenceNote =
       "PREFER: For high-ops-overhead + max-flexibility + strict-compliance scenarios, favor EC2 (ASG) or ECS/EKS over serverless (Lambda/FaaS).";
   }
-  // 2. Call OpenAI to recommend AWS stack
-  // Just before building promptText, you already have noServerlessNote logic
+
   const promptText = `
 Please follow the AWS Stack Selection Guide above.
 ${preferenceNote}
 
-Now, given this application context and feature grouping, suggest the appropriate SDLC methodology, application architecture and AWS architecture/infrastructure.
+Now, given this application context and feature grouping, suggest:
+1. An appropriate software development life cycle (SDLC) methodology.
+2. A web app architecture (e.g. monolith, microservices, N-tier, event-driven).
+3. A detailed AWS infrastructure diagram that clearly labels:
+   - For a monolith: where the single deployable runs (e.g., ECS service, EC2 Auto Scaling Group).
+   - For N-tier: where the frontend lives (static pages on S3/CloudFront vs dynamic pages), where the API/backend runs (Lambda, Fargate/ECS, EC2), and how they connect.
+   - For any specialized buckets (User-Interactive, Public API, Static Content, Async, Batch, Other), which AWS services host each, and any edge or caching layers.
+   - Add deployment specifics for edge-optimized vs regional endpoints, and any IaC hints (e.g. CDK/CloudFormation modules).
 
 Context (user quiz input):
 ${JSON.stringify(quizInput, null, 2)}
@@ -128,17 +137,19 @@ ${buckets
   .join("\n")}
 
 Additional notes / requirements from user:
-${additionalNotes}
+${additionalNotes || "none"}
 
-Return a JSON object with:
-- proposed software development life cycle (SDLC) methodology (string) with detailed rationale why this methodology was suggested.
-- proposed web app architecture (e.g. monolith, microservices, N-tier, event-driven etc.) with detailed rationale why this architecture was suggested (string)
-- additional reply for user considering any additionalNotes provided. Include here a reply to whatever user asked for (string)
-- services (array of strings): list AWS services (e.g., EC2, ECS, EKS, RDS)
-- detailed rationale for AWS architecture (string): why these choices fit
-- dotSpec (string): a Graphviz DOT definition of the architecture
+Return a JSON object with these properties:
+- **sdlc** (string): proposed SDLC methodology, with rationale.
+- **appArchitecture** (string): chosen web app architecture, with rationale.
+- **additionalReply** (string): reply to any specific user questions from ${additionalNotes}.
+- **approximateCost** (string): estimated cost of the proposed AWS architecture, even if it's hard to estimate you can use assumptions, but must give an estimated monthly cost in GBP.
+- **services** (array of strings): list of suggested AWS services. Make sure it is aligned with the dotSpec, architecture and other input data you have access to. For each service include the required specifications, make assumptions if necessary (e.g. if you suggest EC2, then suggest instance type, if you suggest S3 then suggest storage etc.)
+- **rationale** (string): detailed rationale for these AWS choices.
+- **dotSpec** (string): a Graphviz DOT definition, where each node is labeled with the component name and type (e.g., 'Frontend_S3 [label="Frontend\\nS3/CloudFront"]'). Make sure that definition includes all the services you suggested.
 `;
 
+  console.log("Before AI call");
   const aiResp = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -154,12 +165,42 @@ Return a JSON object with:
     ],
     function_call: { name: "suggestAWSStack" },
   });
+  console.log("AI response:", aiResp);
 
   const fnCall = aiResp.choices[0].message.function_call!;
+  console.log("Function call:", fnCall);
+  if (!fnCall || !fnCall.arguments) {
+    return res
+      .status(500)
+      .json({ error: "AI did not return a function call with arguments" });
+  }
   const raw = JSON.parse(fnCall.arguments!);
-  const awsStack = AWSStackSchema.parse(raw);
+  console.log("Parsed AI arguments:", raw);
 
-  return res.json({ awsStack });
+  // Validate against your strict AWSStackSchema
+  let awsStack;
+  try {
+    awsStack = AWSStackSchema.parse(raw);
+    console.log("Validated AWS stack:", awsStack);
+    return res.json({ awsStack });
+  } catch (err) {
+    console.error("Error validating AWS stack:", err);
+    if (err instanceof z.ZodError) {
+      const missingFields = err.issues
+        .filter((i) => i.code === "invalid_type" && i.message === "Required")
+        .map((i) => i.path.join("."));
+      return res.status(500).json({
+        error: `AI response missing required field${
+          missingFields.length > 1 ? "s" : ""
+        }: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // fallback:
+    return res
+      .status(500)
+      .json({ error: "AI response validation failed", details: err });
+  }
 });
 
 const PORT = process.env.PORT || 4000;

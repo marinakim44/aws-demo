@@ -12,4 +12,7 @@ export const initialBuckets: Bucket[] = [
   { id: "async", name: "Async", features: [] },
   { id: "batch", name: "Batch", features: [] },
   { id: "public", name: "Public API", features: [] },
+  { id: "static", name: "Static content", features: [] },
+  { id: "realtime", name: "Real-time / streaming", features: [] },
+  { id: "other", name: "Other", features: [] },
 ];
